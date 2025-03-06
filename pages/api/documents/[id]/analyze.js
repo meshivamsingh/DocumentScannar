@@ -52,6 +52,10 @@ export default async function handler(req, res) {
       const textContent = Buffer.from(content, "base64").toString("utf-8");
       const truncatedContent = textContent.slice(0, 4000); // Limit content length
 
+      if (!truncatedContent) {
+        throw new Error("No content to analyze");
+      }
+
       // Get AI analysis
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -69,6 +73,10 @@ export default async function handler(req, res) {
         temperature: 0.7,
         max_tokens: 500,
       });
+
+      if (!completion.choices?.[0]?.message?.content) {
+        throw new Error("No analysis generated");
+      }
 
       const analysis = completion.choices[0].message.content;
 

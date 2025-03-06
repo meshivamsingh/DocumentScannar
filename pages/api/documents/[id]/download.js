@@ -42,17 +42,25 @@ export default async function handler(req, res) {
     document.downloads += 1;
     await document.save();
 
-    // Set response headers
-    res.setHeader("Content-Type", document.fileType);
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(document.originalName)}"`
-    );
+    try {
+      // Set response headers
+      res.setHeader("Content-Type", document.fileType);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(document.originalName)}"`
+      );
 
-    // Send the file content
-    const buffer = Buffer.from(content, "base64");
-    res.setHeader("Content-Length", buffer.length);
-    res.send(buffer);
+      // Send the file content
+      const buffer = Buffer.from(content, "base64");
+      res.setHeader("Content-Length", buffer.length);
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error sending file:", error);
+      return res.status(500).json({
+        error: "Failed to send file",
+        details: error.message,
+      });
+    }
   } catch (error) {
     console.error("Error downloading document:", error);
     return res.status(500).json({
