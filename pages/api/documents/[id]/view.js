@@ -3,24 +3,36 @@ import Document from "@/models/Document";
 import { verifyToken } from "@/lib/auth";
 
 export default async function handler(req, res) {
+  // Only allow GET requests
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
+    // Get token from headers
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
       return res.status(401).json({ error: "Authentication required" });
     }
 
+    // Verify token
     const decoded = await verifyToken(token);
     if (!decoded) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
+    // Connect to database
     await connectDB();
+
+    // Get document ID from query parameters
+    const documentId = req.query.id;
+    if (!documentId) {
+      return res.status(400).json({ error: "Document ID is required" });
+    }
+
+    // Find document
     const document = await Document.findOne({
-      _id: req.query.id,
+      _id: documentId,
       userId: decoded.userId,
     });
 

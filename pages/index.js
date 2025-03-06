@@ -195,8 +195,10 @@ export default function Home() {
       }
 
       const response = await fetch(`/api/documents/${doc._id}/view`, {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
