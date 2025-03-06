@@ -1,6 +1,6 @@
-import { connectDB } from "@/lib/db";
-import Document from "@/models/Document";
-import { verifyToken } from "@/lib/auth";
+import { connectDB } from "../../../../lib/db";
+import Document from "../../../../models/Document";
+import { verifyToken } from "../../../../lib/auth";
 
 export default async function handler(req, res) {
   // Log the request method and URL for debugging
