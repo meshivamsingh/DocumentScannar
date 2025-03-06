@@ -194,20 +194,31 @@ export default function Home() {
         return;
       }
 
+      // Log the request details for debugging
+      console.log("Viewing document:", doc._id);
+      console.log("Token:", token);
+
       const response = await fetch(`/api/documents/${doc._id}/view`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        // Add cache control to prevent caching
+        cache: "no-cache",
       });
+
+      // Log the response status
+      console.log("Response status:", response.status);
 
       if (!response.ok) {
         const error = await response.json();
+        console.error("Error response:", error);
         throw new Error(error.error || "Failed to view document");
       }
 
       const document = await response.json();
+      console.log("Document data:", document);
       setSelectedDocument(document);
       setShowDocumentModal(true);
     } catch (error) {

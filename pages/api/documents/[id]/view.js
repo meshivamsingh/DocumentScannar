@@ -3,6 +3,11 @@ import Document from "@/models/Document";
 import { verifyToken } from "@/lib/auth";
 
 export default async function handler(req, res) {
+  // Log the request method and URL for debugging
+  console.log("Request method:", req.method);
+  console.log("Request URL:", req.url);
+  console.log("Query params:", req.query);
+
   // Only allow GET requests
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
