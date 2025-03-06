@@ -1,34 +1,31 @@
 import { connectDB } from "@/lib/db";
 import Document from "@/models/Document";
 import { verifyToken } from "@/lib/auth";
-import { NextResponse } from "next/server";
 
-export async function GET(request, { params }) {
+export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
-    const token = request.headers.get("authorization")?.split(" ")[1];
+    const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return res.status(401).json({ error: "Authentication required" });
     }
 
     const decoded = await verifyToken(token);
     if (!decoded) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      return res.status(401).json({ error: "Invalid token" });
     }
 
     await connectDB();
     const document = await Document.findOne({
-      _id: params.id,
+      _id: req.query.id,
       userId: decoded.userId,
     });
 
     if (!document) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
+      return res.status(404).json({ error: "Document not found" });
     }
 
     // Increment view count
@@ -36,7 +33,7 @@ export async function GET(request, { params }) {
     await document.save();
 
     // Return document data
-    return NextResponse.json({
+    return res.status(200).json({
       id: document._id,
       name: document.name,
       type: document.type,
@@ -49,9 +46,6 @@ export async function GET(request, { params }) {
     });
   } catch (error) {
     console.error("Error viewing document:", error);
-    return NextResponse.json(
-      { error: "Failed to view document" },
-      { status: 500 }
-    );
+    return res.status(500).json({ error: "Failed to view document" });
   }
 }
