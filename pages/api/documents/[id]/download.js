@@ -1,6 +1,6 @@
-import { connectDB } from "../../../../utils/db";
+import { connectDB } from "../../../../lib/db";
 import Document from "../../../../models/Document";
-import { verifyToken } from "../../../../utils/auth";
+import { verifyToken } from "../../../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -13,13 +13,12 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
     await connectDB();
-
     const document = await Document.findOne({
       _id: req.query.id,
       userId: decoded.userId,
@@ -30,32 +29,24 @@ export default async function handler(req, res) {
     }
 
     // Increment download count
-    document.downloadCount += 1;
+    document.downloads += 1;
     await document.save();
 
-    // Set response headers for file download
+    // Set response headers
     res.setHeader("Content-Type", document.fileType);
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${encodeURIComponent(document.originalName)}"`
     );
+    res.setHeader("Content-Length", document.fileSize);
 
-    // Handle different file types
-    let content;
-    if (document.fileType === "application/pdf") {
-      // For PDF files, use the original file content if available
-      content = document.fileUrl
-        ? await fetch(document.fileUrl).then((r) => r.buffer())
-        : Buffer.from(document.processedText);
-    } else {
-      // For text-based files, use the processed text
-      content = Buffer.from(document.processedText || "", "utf8");
-    }
-
-    res.setHeader("Content-Length", content.length);
-    res.status(200).send(content);
+    // Send the file content
+    res.send(Buffer.from(document.content || document.processedText, "base64"));
   } catch (error) {
-    console.error("Document download error:", error);
-    res.status(500).json({ error: "Failed to download document" });
+    console.error("Error downloading document:", error);
+    return res.status(500).json({
+      error: "Failed to download document",
+      details: error.message,
+    });
   }
 }

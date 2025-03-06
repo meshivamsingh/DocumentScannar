@@ -53,16 +53,23 @@ export default async function handler(req, res) {
     return res.status(200).json({
       id: document._id,
       name: document.name,
+      originalName: document.originalName,
       type: document.type,
-      content: document.content,
+      fileType: document.fileType,
+      fileSize: document.fileSize,
+      content: document.content || document.processedText,
       analysis: document.analysis,
       views: document.views,
       downloads: document.downloads,
+      status: document.status,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     });
   } catch (error) {
     console.error("Error viewing document:", error);
-    return res.status(500).json({ error: "Failed to view document" });
+    return res.status(500).json({
+      error: "Failed to view document",
+      details: error.message,
+    });
   }
 }
