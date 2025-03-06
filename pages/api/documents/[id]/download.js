@@ -28,6 +28,16 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Document not found" });
     }
 
+    // Get content
+    let content = document.content;
+    if (!content && document.processedText) {
+      content = document.processedText;
+    }
+
+    if (!content) {
+      return res.status(400).json({ error: "Document content not found" });
+    }
+
     // Increment download count
     document.downloads += 1;
     await document.save();
@@ -38,10 +48,11 @@ export default async function handler(req, res) {
       "Content-Disposition",
       `attachment; filename="${encodeURIComponent(document.originalName)}"`
     );
-    res.setHeader("Content-Length", document.fileSize);
 
     // Send the file content
-    res.send(Buffer.from(document.content || document.processedText, "base64"));
+    const buffer = Buffer.from(content, "base64");
+    res.setHeader("Content-Length", buffer.length);
+    res.send(buffer);
   } catch (error) {
     console.error("Error downloading document:", error);
     return res.status(500).json({

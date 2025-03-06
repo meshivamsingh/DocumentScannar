@@ -33,8 +33,12 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Document not found" });
     }
 
-    // Check if document has content
-    const content = document.content || document.processedText;
+    // Get content
+    let content = document.content;
+    if (!content && document.processedText) {
+      content = document.processedText;
+    }
+
     if (!content) {
       return res.status(400).json({ error: "Document content not found" });
     }
@@ -43,51 +47,59 @@ export default async function handler(req, res) {
     document.status = "processing";
     await document.save();
 
-    // Prepare content for analysis
-    const textContent = Buffer.from(content, "base64").toString("utf-8");
-    const truncatedContent = textContent.slice(0, 4000); // Limit content length
+    try {
+      // Prepare content for analysis
+      const textContent = Buffer.from(content, "base64").toString("utf-8");
+      const truncatedContent = textContent.slice(0, 4000); // Limit content length
 
-    // Get AI analysis
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a document analysis assistant. Analyze the following document and provide a structured analysis.",
+      // Get AI analysis
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a document analysis assistant. Analyze the following document and provide:\n1. A brief summary\n2. Key points or main ideas\n3. Important insights or findings\n4. Any recommendations or action items\n\nFormat your response in a clear, structured way with appropriate headings.",
+          },
+          {
+            role: "user",
+            content: truncatedContent,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const analysis = completion.choices[0].message.content;
+
+      // Update document with analysis
+      document.analysis = analysis;
+      document.status = "completed";
+      await document.save();
+
+      // Return updated document
+      return res.status(200).json({
+        document: {
+          id: document._id,
+          name: document.name,
+          type: document.type,
+          content: document.content,
+          analysis: document.analysis,
+          views: document.views,
+          downloads: document.downloads,
+          status: document.status,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
         },
-        {
-          role: "user",
-          content: truncatedContent,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
-
-    const analysis = completion.choices[0].message.content;
-
-    // Update document with analysis
-    document.analysis = analysis;
-    document.status = "completed";
-    await document.save();
-
-    // Return updated document
-    return res.status(200).json({
-      document: {
-        id: document._id,
-        name: document.name,
-        type: document.type,
-        content: document.content,
-        analysis: document.analysis,
-        views: document.views,
-        downloads: document.downloads,
-        status: document.status,
-        createdAt: document.createdAt,
-        updatedAt: document.updatedAt,
-      },
-      credits: decoded.credits - 1, // Assuming 1 credit per analysis
-    });
+        credits: decoded.credits - 1, // Assuming 1 credit per analysis
+      });
+    } catch (analysisError) {
+      console.error("Analysis error:", analysisError);
+      document.status = "failed";
+      document.errorMessage = analysisError.message;
+      await document.save();
+      throw analysisError;
+    }
   } catch (error) {
     console.error("Error analyzing document:", error);
     return res.status(500).json({

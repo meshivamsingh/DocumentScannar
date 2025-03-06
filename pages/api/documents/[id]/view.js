@@ -49,6 +49,19 @@ export default async function handler(req, res) {
     document.views += 1;
     await document.save();
 
+    // Prepare content for response
+    let content = document.content;
+    if (!content && document.processedText) {
+      try {
+        content = Buffer.from(document.processedText, "base64").toString(
+          "utf-8"
+        );
+      } catch (error) {
+        console.error("Error decoding content:", error);
+        content = "Error decoding document content";
+      }
+    }
+
     // Return document data
     return res.status(200).json({
       id: document._id,
@@ -57,7 +70,7 @@ export default async function handler(req, res) {
       type: document.type,
       fileType: document.fileType,
       fileSize: document.fileSize,
-      content: document.content || document.processedText,
+      content: content,
       analysis: document.analysis,
       views: document.views,
       downloads: document.downloads,
