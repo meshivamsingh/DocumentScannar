@@ -45,21 +45,35 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Document not found" });
     }
 
+    console.log("Document found:", {
+      id: document._id,
+      name: document.name,
+      hasContent: !!document.content,
+      hasProcessedText: !!document.processedText,
+    });
+
     // Increment view count
     document.views += 1;
     await document.save();
 
     // Prepare content for response
-    let content = document.content;
-    if (!content && document.processedText) {
-      try {
+    let content = null;
+    try {
+      if (document.content) {
+        content = document.content;
+      } else if (document.processedText) {
         content = Buffer.from(document.processedText, "base64").toString(
           "utf-8"
         );
-      } catch (error) {
-        console.error("Error decoding content:", error);
-        content = "Error decoding document content";
       }
+    } catch (error) {
+      console.error("Error processing content:", error);
+      content = "Error processing document content";
+    }
+
+    if (!content) {
+      console.error("No content found in document");
+      return res.status(400).json({ error: "Document content not found" });
     }
 
     // Return document data
@@ -83,6 +97,7 @@ export default async function handler(req, res) {
     return res.status(500).json({
       error: "Failed to view document",
       details: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 }
