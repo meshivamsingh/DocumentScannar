@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-hot-toast";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -187,25 +188,29 @@ export default function Home() {
 
   const handleViewDocument = async (doc) => {
     try {
-      setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/documents/${doc._id}`, {
+      if (!token) {
+        toast.error("Please login to view documents");
+        return;
+      }
+
+      const response = await fetch(`/api/documents/${doc._id}/view`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.json();
-      if (response.ok) {
-        setSelectedDocument(data.document);
-        setShowDocumentModal(true);
-      } else {
-        setError(data.error || "Failed to fetch document");
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to view document");
       }
+
+      const document = await response.json();
+      setSelectedDocument(document);
+      setShowDocumentModal(true);
     } catch (error) {
-      console.error("View document error:", error);
-      setError(error.message || "Failed to fetch document");
-    } finally {
-      setLoading(false);
+      console.error("Error viewing document:", error);
+      toast.error(error.message || "Failed to view document");
     }
   };
 
@@ -723,138 +728,72 @@ export default function Home() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {selectedDocument.originalName}
-                </h2>
-                <button
-                  onClick={() => setShowDocumentModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {selectedDocument.name}
+                  </h2>
+                  <button
+                    onClick={() => setShowDocumentModal(false)}
+                    className="text-gray-500 hover:text-gray-700"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Document Content */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-2">
-                    Document Content
-                  </h3>
-                  {selectedDocument.fileType === "application/pdf" ? (
-                    <div className="aspect-w-16 aspect-h-9">
-                      <iframe
-                        src={`data:application/pdf;base64,${selectedDocument.processedText}`}
-                        className="w-full h-[500px]"
-                        title="PDF Preview"
-                      />
-                    </div>
-                  ) : (
-                    <div className="whitespace-pre-wrap text-gray-700">
-                      {Buffer.from(
-                        selectedDocument.processedText,
-                        "base64"
-                      ).toString()}
-                    </div>
-                  )}
-                </div>
-
-                {/* AI Analysis Section */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-lg font-semibold text-blue-800">
-                      AI Analysis
-                    </h3>
-                    <button
-                      onClick={() => handleAnalyzeDocument(selectedDocument)}
-                      disabled={
-                        analyzingDocumentId !== null || user.credits <= 0
-                      }
-                      className={`px-4 py-2 rounded text-sm font-medium ${
-                        analyzingDocumentId !== null || user.credits <= 0
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
-                      }`}
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      {analyzingDocumentId === selectedDocument._id ? (
-                        <span className="flex items-center justify-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Analyzing...
-                        </span>
-                      ) : (
-                        "Re-analyze"
-                      )}
-                    </button>
-                  </div>
-                  {selectedDocument.analysis ? (
-                    <div className="text-gray-700 whitespace-pre-wrap">
-                      {selectedDocument.analysis}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic">
-                      No analysis available yet. Click the "Re-analyze" button
-                      to generate an analysis.
-                    </p>
-                  )}
-                  {user.credits <= 0 && (
-                    <p className="text-red-500 text-sm mt-2">
-                      You need credits to perform analysis. Please purchase more
-                      credits.
-                    </p>
-                  )}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
 
-                {/* Document Details */}
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                  <div>
-                    <span className="font-semibold">Views:</span>{" "}
-                    {selectedDocument.views || 0}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      Document Content
+                    </h3>
+                    <div className="whitespace-pre-wrap text-gray-700">
+                      {selectedDocument.content}
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-semibold">Downloads:</span>{" "}
-                    {selectedDocument.downloads || 0}
-                  </div>
-                  <div>
-                    <span className="font-semibold">File Type:</span>{" "}
-                    {selectedDocument.fileType}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Size:</span>{" "}
-                    {(selectedDocument.fileSize / 1024).toFixed(2)} KB
+
+                  {selectedDocument.analysis && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-blue-900 mb-2">
+                        AI Analysis
+                      </h3>
+                      <div className="whitespace-pre-wrap text-blue-700">
+                        {selectedDocument.analysis}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div>
+                      <span className="mr-4">
+                        Views: {selectedDocument.views}
+                      </span>
+                      <span>Downloads: {selectedDocument.downloads}</span>
+                    </div>
+                    <div>
+                      <span className="mr-4">
+                        Type: {selectedDocument.type}
+                      </span>
+                      <span>
+                        Created:{" "}
+                        {new Date(
+                          selectedDocument.createdAt
+                        ).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
