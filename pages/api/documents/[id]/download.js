@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     }
 
     await connectDB();
+
     const document = await Document.findOne({
       _id: req.query.id,
       userId: decoded.userId,
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
       name: document.name,
       hasContent: !!document.content,
       hasProcessedText: !!document.processedText,
+      fileType: document.fileType,
     });
 
     // Get content

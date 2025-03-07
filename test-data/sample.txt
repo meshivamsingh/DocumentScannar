@@ -1,0 +1,23 @@
+Sample Document for Testing
+
+This is a sample text document used for testing the Document Scanner application.
+
+Features to test:
+1. Document upload
+2. Text extraction
+3. AI analysis
+4. Document viewing
+5. Document downloading
+
+The application should be able to:
+- Extract this text correctly
+- Analyze the content using AI
+- Display the content properly
+- Allow downloading in original format
+- Track views and downloads
+
+Test data characteristics:
+- Format: Plain text
+- Size: Small
+- Content: Simple text with structure
+- Encoding: UTF-8 

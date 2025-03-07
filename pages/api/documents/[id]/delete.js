@@ -1,6 +1,6 @@
-import { connectDB } from "../../../../utils/db";
+import { connectDB } from "../../../../lib/db";
 import Document from "../../../../models/Document";
-import { verifyToken } from "../../../../utils/auth";
+import { verifyToken } from "../../../../lib/auth";
 
 export default async function handler(req, res) {
   if (req.method !== "DELETE") {
@@ -8,21 +8,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Verify authentication
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
     await connectDB();
-
-    // Find and delete the document
-    const document = await Document.findOneAndDelete({
+    const document = await Document.findOne({
       _id: req.query.id,
       userId: decoded.userId,
     });
@@ -31,15 +28,16 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Document not found" });
     }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Document deleted successfully" });
+    // Delete the document
+    await document.deleteOne();
+
+    return res.status(200).json({ message: "Document deleted successfully" });
   } catch (error) {
-    console.error("Delete document error:", error);
-    res.status(500).json({
+    console.error("Error deleting document:", error);
+    return res.status(500).json({
       error: "Failed to delete document",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+      details: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 }
